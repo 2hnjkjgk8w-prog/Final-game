@@ -1,0 +1,745 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#17251d">
+  <meta name="description" content="Explore un monde fantasy en pixel art.">
+  <title>Les Terres Oubliées</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      color-scheme: dark;
+      --panel: #202c25;
+      --gold: #e8c77c;
+      --text: #f2ead5;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      background: #111a15;
+      color: var(--text);
+      font-family: monospace;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #game {
+      width: 100%;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      max-width: 900px;
+      margin: auto;
+      padding: 8px;
+      padding-top: max(8px, env(safe-area-inset-top));
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      gap: 8px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--panel);
+      border: 2px solid #53634a;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      color: var(--gold);
+      font-size: clamp(12px, 3.5vw, 17px);
+      font-weight: bold;
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      font-size: 10px;
+      color: #c0cbb9;
+    }
+
+    #status {
+      text-align: right;
+      font-size: 10px;
+      line-height: 1.7;
+    }
+
+    #viewport {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      background: #293d28;
+      border: 3px solid #6c7850;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    #location {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      padding: 6px 8px;
+      background: #17251ddd;
+      border: 1px solid #9aab71;
+      border-radius: 4px;
+      font-size: 10px;
+      pointer-events: none;
+    }
+
+    #hint {
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      text-align: center;
+      padding: 7px;
+      border-radius: 4px;
+      background: #17251dcc;
+      color: #eee5c8;
+      font-size: 10px;
+      pointer-events: none;
+    }
+
+    #controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+      min-height: 142px;
+      padding: 8px 4px;
+    }
+
+    #pad {
+      display: grid;
+      grid-template-columns: repeat(3, 48px);
+      grid-template-rows: repeat(3, 42px);
+      gap: 3px;
+      touch-action: none;
+    }
+
+    .control {
+      background: #2a3b2e;
+      color: #fff2cf;
+      border: 2px solid #687956;
+      border-radius: 8px;
+      font-size: 19px;
+      font-weight: bold;
+      box-shadow: 0 3px 0 #101710;
+      touch-action: none;
+      cursor: pointer;
+    }
+
+    .control:active,
+    .control.active {
+      background: #667b45;
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #101710;
+    }
+
+    #up { grid-column: 2; grid-row: 1; }
+    #left { grid-column: 1; grid-row: 2; }
+    #down { grid-column: 2; grid-row: 2; }
+    #right { grid-column: 3; grid-row: 2; }
+
+    #actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: stretch;
+      flex: 1;
+      max-width: 155px;
+    }
+
+    .action {
+      min-height: 44px;
+      font-size: 11px;
+      padding: 8px;
+      background: #5a452a;
+      border-color: #b89a5d;
+    }
+
+    #message {
+      flex-shrink: 0;
+      min-height: 34px;
+      padding: 8px;
+      text-align: center;
+      font-size: 10px;
+      line-height: 1.5;
+      color: #d5ddc9;
+      background: #202c25;
+      border: 1px solid #435443;
+      border-radius: 5px;
+    }
+
+    @media (max-width: 380px) {
+      #pad {
+        grid-template-columns: repeat(3, 42px);
+        grid-template-rows: repeat(3, 38px);
+      }
+
+      #controls {
+        min-height: 130px;
+        gap: 5px;
+      }
+
+      .action {
+        font-size: 10px;
+      }
+    }
+
+    @media (min-width: 650px) {
+      #controls {
+        justify-content: center;
+        gap: 60px;
+      }
+
+      #pad {
+        grid-template-columns: repeat(3, 56px);
+        grid-template-rows: repeat(3, 44px);
+      }
+
+      #actions {
+        max-width: 200px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main id="game">
+    <header>
+      <div>
+        <div class="brand">⚔ LES TERRES OUBLIÉES</div>
+        <div class="subtitle">Chapitre I · Le réveil du voyageur</div>
+      </div>
+      <div id="status">
+        <div>Rang : <span style="color:#e8c77c">Aventurier</span></div>
+        <div id="coords">X: 0 · Y: 0</div>
+      </div>
+    </header>
+
+    <section id="viewport">
+      <canvas id="world" aria-label="Carte du jeu en pixel art"></canvas>
+      <div id="location">🌿 Prairies d'Eldoria</div>
+      <div id="hint">Explore les terres à la recherche de ton destin...</div>
+    </section>
+
+    <section id="controls" aria-label="Commandes du jeu">
+      <div id="pad">
+        <button class="control" id="up" aria-label="Aller en haut">▲</button>
+        <button class="control" id="left" aria-label="Aller à gauche">◀</button>
+        <button class="control" id="down" aria-label="Aller en bas">▼</button>
+        <button class="control" id="right" aria-label="Aller à droite">▶</button>
+      </div>
+
+      <div id="actions">
+        <button class="control action" id="explore">🔎 Explorer</button>
+        <button class="control action" id="center">🧭 Me recentrer</button>
+      </div>
+    </section>
+
+    <div id="message" role="status">
+      Bienvenue, voyageur. Les Terres Oubliées t'attendent.
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const canvas = document.getElementById("world");
+      const ctx = canvas.getContext("2d");
+      const viewport = document.getElementById("viewport");
+      const coords = document.getElementById("coords");
+      const locationLabel = document.getElementById("location");
+      const hint = document.getElementById("hint");
+      const message = document.getElementById("message");
+
+      // Monde en tuiles : une tuile mesure 16 pixels.
+      const TILE = 16;
+      const MAP_W = 100;
+      const MAP_H = 100;
+      const WORLD_W = MAP_W * TILE;
+      const WORLD_H = MAP_H * TILE;
+
+      const view = { w: 320, h: 240 };
+      const camera = { x: 0, y: 0 };
+
+      const player = {
+        x: 50 * TILE + 8,
+        y: 50 * TILE + 8,
+        speed: 100,
+        direction: "down",
+        moving: false,
+        walkTime: 0
+      };
+
+      const keys = new Set();
+      const touchDirections = new Set();
+
+      let lastTime = 0;
+      let messageTimer = 0;
+
+      // Générateur aléatoire reproductible.
+      function random2(x, y) {
+        let n = Math.imul(x + 374761393, 668265263);
+        n = Math.imul(n ^ (n >>> 13), 1274126177);
+        n ^= Math.imul(y + 1274126177, 2246822519);
+        n = Math.imul(n ^ (n >>> 16), 3266489917);
+        n ^= n >>> 16;
+        return (n >>> 0) / 4294967295;
+      }
+
+      function tileAt(tx, ty) {
+        // Un étang au nord-est.
+        const pond = Math.pow((tx - 64) / 8, 2)
+                   + Math.pow((ty - 35) / 6, 2) < 1;
+
+        if (pond) return 2;
+
+        // Chemins autour du village.
+        if (Math.abs(ty - 50) <= 1) return 1;
+        if (Math.abs(tx - 50) <= 1 && ty > 43 && ty < 61) return 1;
+        if (Math.abs(ty - 59) <= 1 && tx > 44 && tx < 57) return 1;
+
+        // Herbe avec petites variations.
+        const r = random2(tx, ty);
+        return r > 0.91 ? 3 : 0;
+      }
+
+      function resize() {
+        const rect = viewport.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        view.w = Math.max(160, Math.floor(rect.width));
+        view.h = Math.max(160, Math.floor(rect.height));
+
+        canvas.width = Math.floor(view.w * dpr);
+        canvas.height = Math.floor(view.h * dpr);
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+      }
+
+      window.addEventListener("resize", resize);
+      resize();
+
+      function rect(x, y, w, h, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(
+          Math.round(x - camera.x),
+          Math.round(y - camera.y),
+          w,
+          h
+        );
+      }
+
+      function drawTile(tx, ty) {
+        const x = tx * TILE;
+        const y = ty * TILE;
+        const t = tileAt(tx, ty);
+
+        if (t === 2) {
+          rect(x, y, TILE, TILE, "#315d78");
+          rect(x + 3, y + 4, 5, 2, "#6095a4");
+          rect(x + 10, y + 11, 4, 2, "#487c94");
+          return;
+        }
+
+        if (t === 1) {
+          rect(x, y, TILE, TILE, "#b5a071");
+          rect(x + 3, y + 4, 2, 2, "#9c875d");
+          rect(x + 11, y + 10, 2, 2, "#d1bd8b");
+          return;
+        }
+
+        rect(x, y, TILE, TILE, t === 3 ? "#527d43" : "#47783d");
+
+        const r = random2(tx + 91, ty - 37);
+
+        if (r > 0.45) {
+          rect(x + 3, y + 5, 2, 2, "#63934a");
+        }
+        if (r > 0.72) {
+          rect(x + 11, y + 12, 2, 2, "#315f35");
+        }
+        if (t === 3) {
+          rect(x + 7, y + 3, 2, 3, "#d4cf68");
+          rect(x + 9, y + 5, 2, 2, "#efe3a0");
+        }
+      }
+
+      function drawTree(tx, ty) {
+        const x = tx * TILE;
+        const y = ty * TILE;
+
+        // Ombre.
+        rect(x + 2, y + 10, 13, 5, "#31512f");
+
+        // Tronc.
+        rect(x + 6, y + 8, 5, 8, "#79502f");
+        rect(x + 7, y + 10, 2, 5, "#a16d3c");
+
+        // Feuillage en plusieurs couches.
+        rect(x + 4, y + 2, 9, 9, "#275432");
+        rect(x + 2, y + 5, 12, 6, "#356a37");
+        rect(x + 5, y, 7, 8, "#478143");
+        rect(x + 5, y + 2, 3, 3, "#61944a");
+        rect(x + 10, y + 6, 3, 3, "#244a30");
+      }
+
+      function drawHouse(tx, ty, color) {
+        const x = tx * TILE;
+        const y = ty * TILE;
+
+        // Ombre.
+        rect(x - 2, y + 11, 24, 9, "#2d492d");
+
+        // Bâtiment.
+        rect(x, y + 5, 20, 13, "#c8b18a");
+        rect(x + 2, y + 7, 16, 9, "#e2cfaa");
+
+        // Toit.
+        rect(x - 2, y + 3, 24, 4, color);
+        rect(x + 1, y, 18, 4, color);
+        rect(x + 4, y - 2, 12, 3, color);
+        rect(x + 3, y + 4, 3, 3, "#46352a");
+
+        // Porte.
+        rect(x + 8, y + 10, 5, 8, "#67452f");
+        rect(x + 11, y + 13, 1, 1, "#e8c77c");
+
+        // Fenêtre.
+        rect(x + 2, y + 9, 4, 3, "#70a4a7");
+        rect(x + 3, y + 10, 2, 1, "#b7e0d5");
+      }
+
+      function drawWorld() {
+        const startX = Math.max(0, Math.floor(camera.x / TILE));
+        const startY = Math.max(0, Math.floor(camera.y / TILE));
+        const endX = Math.min(
+          MAP_W - 1,
+          Math.ceil((camera.x + view.w) / TILE)
+        );
+        const endY = Math.min(
+          MAP_H - 1,
+          Math.ceil((camera.y + view.h) / TILE)
+        );
+
+        for (let ty = startY; ty <= endY; ty++) {
+          for (let tx = startX; tx <= endX; tx++) {
+            drawTile(tx, ty);
+          }
+        }
+
+        // Quelques éléments du décor du village.
+        for (let ty = startY; ty <= endY; ty++) {
+          for (let tx = startX; tx <= endX; tx++) {
+            if (
+              Math.abs(tx - 46) < 2 &&
+              Math.abs(ty - 47) < 2
+            ) {
+              drawHouse(tx * 1, ty * 1, "#874a38");
+            }
+
+            if (
+              Math.abs(tx - 54) < 2 &&
+              Math.abs(ty - 47) < 2
+            ) {
+              drawHouse(tx * 1, ty * 1, "#67547f");
+            }
+
+            // Arbres générés de façon stable.
+            const r = random2(tx + 300, ty + 700);
+            const nearVillage =
+              tx > 42 && tx < 59 && ty > 42 && ty < 62;
+            const nearPond =
+              Math.pow((tx - 64) / 8, 2) +
+              Math.pow((ty - 35) / 6, 2) < 1.25;
+
+            if (
+              r > 0.965 &&
+              !nearVillage &&
+              !nearPond &&
+              tileAt(tx, ty) !== 2
+            ) {
+              drawTree(tx, ty);
+            }
+          }
+        }
+      }
+
+      function drawPlayer() {
+        const x = Math.round(player.x - camera.x);
+        const y = Math.round(player.y - camera.y);
+
+        const step = player.moving
+          ? Math.sin(player.walkTime * 13) * 2
+          : 0;
+
+        // Ombre.
+        ctx.fillStyle = "#263a29";
+        ctx.fillRect(x - 6, y + 5, 12, 5);
+
+        // Jambes.
+        ctx.fillStyle = "#47364c";
+        ctx.fillRect(x - 4, y + 1 + Math.max(0, step), 3, 7);
+        ctx.fillRect(x + 1, y + 1 + Math.max(0, -step), 3, 7);
+
+        // Bottes.
+        ctx.fillStyle = "#4a3026";
+        ctx.fillRect(x - 5, y + 6 + Math.max(0, step), 4, 2);
+        ctx.fillRect(x + 1, y + 6 + Math.max(0, -step), 4, 2);
+
+        // Cape.
+        ctx.fillStyle = "#873b39";
+        ctx.fillRect(x - 5, y - 7, 10, 10);
+        ctx.fillStyle = "#b04e40";
+        ctx.fillRect(x - 3, y - 6, 6, 7);
+
+        // Tête.
+        ctx.fillStyle = "#d5a477";
+        ctx.fillRect(x - 4, y - 13, 8, 8);
+
+        // Cheveux.
+        ctx.fillStyle = "#573c2c";
+        ctx.fillRect(x - 5, y - 14, 10, 4);
+        ctx.fillRect(x - 5, y - 12, 2, 4);
+
+        // Yeux orientés dans la direction du déplacement.
+        ctx.fillStyle = "#30271e";
+
+        if (player.direction === "down") {
+          ctx.fillRect(x - 3, y - 8, 2, 2);
+          ctx.fillRect(x + 1, y - 8, 2, 2);
+        } else if (player.direction === "left") {
+          ctx.fillRect(x - 4, y - 9, 2, 2);
+        } else if (player.direction === "right") {
+          ctx.fillRect(x + 2, y - 9, 2, 2);
+        }
+
+        // Ceinture.
+        ctx.fillStyle = "#e0bf70";
+        ctx.fillRect(x - 4, y - 1, 8, 2);
+      }
+
+      function updateCamera() {
+        camera.x = Math.max(
+          0,
+          Math.min(WORLD_W - view.w, player.x - view.w / 2)
+        );
+
+        camera.y = Math.max(
+          0,
+          Math.min(WORLD_H - view.h, player.y - view.h / 2)
+        );
+      }
+
+      function getDirection() {
+        const up = keys.has("ArrowUp") || keys.has("w") ||
+          keys.has("z") || touchDirections.has("up");
+        const down = keys.has("ArrowDown") || keys.has("s") ||
+          touchDirections.has("down");
+        const left = keys.has("ArrowLeft") || keys.has("a") ||
+          keys.has("q") || touchDirections.has("left");
+        const right = keys.has("ArrowRight") || keys.has("d") ||
+          touchDirections.has("right");
+
+        return {
+          x: (right ? 1 : 0) - (left ? 1 : 0),
+          y: (down ? 1 : 0) - (up ? 1 : 0)
+        };
+      }
+
+      function update(dt) {
+        const dir = getDirection();
+        player.moving = dir.x !== 0 || dir.y !== 0;
+
+        if (player.moving) {
+          // Même vitesse en diagonale.
+          const length = Math.hypot(dir.x, dir.y);
+          player.x += dir.x / length * player.speed * dt;
+          player.y += dir.y / length * player.speed * dt;
+
+          if (Math.abs(dir.x) > Math.abs(dir.y)) {
+            player.direction = dir.x > 0 ? "right" : "left";
+          } else if (dir.y !== 0) {
+            player.direction = dir.y > 0 ? "down" : "up";
+          }
+
+          player.walkTime += dt;
+        }
+
+        // Pour cette première étape, les collisions seront ajoutées
+        // dans l'étape 2.
+        player.x = Math.max(8, Math.min(WORLD_W - 8, player.x));
+        player.y = Math.max(8, Math.min(WORLD_H - 8, player.y));
+
+        updateCamera();
+
+        coords.textContent =
+          "X: " + Math.floor(player.x / TILE) +
+          " · Y: " + Math.floor(player.y / TILE);
+
+        const tx = Math.floor(player.x / TILE);
+        const ty = Math.floor(player.y / TILE);
+
+        if (tx > 43 && tx < 58 && ty > 44 && ty < 53) {
+          locationLabel.textContent = "🏘️ Village d'Eldoria";
+        } else if (
+          Math.pow((tx - 64) / 8, 2) +
+          Math.pow((ty - 35) / 6, 2) < 1.4
+        ) {
+          locationLabel.textContent = "💧 Étang des Murmures";
+        } else {
+          locationLabel.textContent = "🌿 Prairies d'Eldoria";
+        }
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, view.w, view.h);
+        drawWorld();
+        drawPlayer();
+      }
+
+      function loop(timestamp) {
+        const dt = lastTime
+          ? Math.min((timestamp - lastTime) / 1000, 0.05)
+          : 0;
+
+        lastTime = timestamp;
+
+        update(dt);
+        render();
+
+        requestAnimationFrame(loop);
+      }
+
+      requestAnimationFrame(loop);
+
+      // Clavier : flèches, WASD ou ZQSD.
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.length === 1
+          ? event.key.toLowerCase()
+          : event.key;
+
+        if ([
+          "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+          " ", "w", "a", "s", "d", "z", "q"
+        ].includes(key)) {
+          event.preventDefault();
+        }
+
+        keys.add(key);
+      });
+
+      window.addEventListener("keyup", (event) => {
+        const key = event.key.length === 1
+          ? event.key.toLowerCase()
+          : event.key;
+
+        keys.delete(key);
+      });
+
+      window.addEventListener("blur", () => {
+        keys.clear();
+        touchDirections.clear();
+        document.querySelectorAll(".control").forEach((button) => {
+          button.classList.remove("active");
+        });
+      });
+
+      // Commandes tactiles : le personnage marche tant que
+      // le doigt reste appuyé sur la direction.
+      function bindDirection(id, direction) {
+        const button = document.getElementById(id);
+
+        button.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          button.setPointerCapture(event.pointerId);
+          touchDirections.add(direction);
+          button.classList.add("active");
+        });
+
+        function release(event) {
+          if (event) event.preventDefault();
+          touchDirections.delete(direction);
+          button.classList.remove("active");
+        }
+
+        button.addEventListener("pointerup", release);
+        button.addEventListener("pointercancel", release);
+        button.addEventListener("lostpointercapture", release);
+      }
+
+      bindDirection("up", "up");
+      bindDirection("down", "down");
+      bindDirection("left", "left");
+      bindDirection("right", "right");
+
+      function showMessage(text) {
+        message.textContent = text;
+        hint.textContent = text;
+      }
+
+      document.getElementById("center").addEventListener("click", () => {
+        updateCamera();
+        showMessage("La caméra est recentrée sur ton personnage.");
+      });
+
+      document.getElementById("explore").addEventListener("click", () => {
+        const tx = Math.floor(player.x / TILE);
+        const ty = Math.floor(player.y / TILE);
+
+        if (tx > 43 && tx < 58 && ty > 44 && ty < 53) {
+          showMessage(
+            "Village d'Eldoria : ses habitants semblent attendre un héros."
+          );
+        } else if (
+          Math.pow((tx - 64) / 8, 2) +
+          Math.pow((ty - 35) / 6, 2) < 1.4
+        ) {
+          showMessage(
+            "L'eau de l'étang scintille. Quelque chose se cache peut-être ici..."
+          );
+        } else {
+          const discoveries = [
+            "Tu aperçois de vieilles traces dans l'herbe.",
+            "Le vent transporte un étrange murmure venu de la forêt.",
+            "Un sentier semble conduire vers des terres inconnues.",
+            "Quelques fleurs magiques poussent au bord du chemin.",
+            "Des oiseaux s'envolent au-dessus des prairies."
+          ];
+
+          const index = Math.floor(
+            random2(tx + Date.now() % 1000, ty) * discoveries.length
+          );
+
+          showMessage(discoveries[index]);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
